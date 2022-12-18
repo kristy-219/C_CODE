@@ -1,0 +1,465 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include<stdio.h>
+#include<stdlib.h>//清屏函数所要引用的头文件
+#include<conio.h>//getch所用的头文件
+#include<string.h>//strlen引入所需函数
+//声明一个指针变量
+FILE* fp;
+//int count = 0;count也不再需要了
+int zx = 0;//用来返回主界面的变量，注销函数使用
+int find;//作为判断表示，找到了下标
+int dfind;//在转账函数中作为一个常用判断变量
+//struct bank t;
+struct bank//结构体类型//尽量把结构体放到全局变量，放到里面会出现错误
+{
+	char name[20];//用户名
+	char password[7];//密码
+	int account;//账号
+	double money,t;//余额
+}kehu,t;//在定义结构体类型时声明变量//如何引用结构体变量，结构体变量名.成员名//原来是没有文件，需要全都放到缓存里，现在有了文件可以直接放到文件里，他只作为每一次一个账户的一个桥梁
+//密码函数
+void input(char mima[])
+{
+
+	int i = 0;
+	char ch;
+	while (1)
+	{
+		ch = _getch();
+		if (ch != '\r')//回车键，保证在打入回车和退格键是不会误判为正常密码，需要定义临时变量来暂时储存
+		{
+			if (ch != '\b')//退格键，确保无误后，才可以正常输入进密码中
+			{
+				mima[i] = ch;
+				i++;
+				printf("*");
+			}
+			else
+			{
+				if (i > 0)//只让他删密码，别把其他东西都删了
+				{
+					i--;
+					printf("\b \b");//先让光标回到上一个，再用空格覆盖带掉*，之后在让光标向后移，就呈现出删除一个的样子
+				}
+			}
+		}
+		else
+			break;
+	}
+
+	mima[i] = '\0';//需要留有一个结束标志
+	printf("\n");
+}
+//退出函数
+void quit()
+{
+	system("cls");
+	printf("\n\n\n\t\t\t大连工业大学ATM为您服务");
+	printf("\n\n\n\t\t\t正在退出，请稍后···\n\n\n");
+	exit(0);//退出系统函数,库函数，包含于stdlib.h的库函数中
+}
+void qing()//是一个清除缓冲区的函数，实用性不是很强
+{
+	while (_kbhit)
+	{
+		_getch();
+	}
+	rewind(stdin);
+}
+//查询函数
+void selectmoney()
+{
+	system("cls");
+	printf("\n\n\t\t\t您现在使用的是查询服务功能");
+	printf("\n\n\t\t\t显示您的账户余额为%.2lf", t.money); //将客户改为t
+}
+//存款函数
+void savemoney()
+{
+	system("cls");
+	printf("\n\n\t\t\t您现在执行的是存款服务");
+	printf("\n\n\t\t\t请输入存款金额:");
+	int qian=0;
+	scanf("%d", &qian);
+	t.money = t.money + qian;//kehu现在只作为一个桥梁，t才是你现在面向的已经登录的客户，现在只修改了内存，还未修改文件
+	fseek(fp, -sizeof(t), 1);//从当前位置往前调一条记录，现在是在他的t的上一条了，再进行修改，开始修改的就是t的内容了
+	fwrite(&t, sizeof(t), 1, fp);//重写一边，完成覆盖信息
+	printf("\n\n\t\t\t存款成功");
+	
+}
+//取款函数
+void getmoney()
+{
+	system("cls");
+	int qian;
+	printf("\n\n\t\t\t您现在正在执行的是取款服务");
+	printf("\n\n\t\t\t请输入取款金额:");
+	scanf("%d", &qian);
+	if (t.money >= qian)
+	{
+		t.money = t.money - qian;
+		fseek(fp, -sizeof(t), 1);//与存款同理概念
+		fwrite(&t, sizeof(t), 1, fp);
+		printf("\n\n\t\t\t取款成功！");
+	}
+	else
+		printf("\n\n\t\t\t您的余额不足");
+}
+//转账函数
+void zhuanzhang()
+{
+	system("cls");//首先理解，现在登陆的客户的信息是放在t里面的，现在是t的也就是登陆客户的界面
+	int zhanghao,f=0,qian;//定义多变量，大部分作为中间变量
+	struct bank temp;//这个是要将收到钱的人位置存放起来的变量
+	int n = ftell(fp);//将现在登录人的数据位置保存起来，为了后面查找第二个人时导致出现位置丢失做出一定的保证
+	printf("\n\n\t\t\t您正在执行的是转账服务");
+	printf("\n\n\t\t\t请输入对方的账号");
+	rewind(fp);//将指针位置放到文件开头
+	scanf("%d", &zhanghao);
+	while (fread(&temp,sizeof(temp),1,fp)==1)
+	{
+		if (zhanghao == temp.account)
+		{
+			//dfind = i;//作为一个标志来定义对方账户的一个变量
+			f = 1;
+			break;
+		}
+	}
+	if (f == 1)
+	{
+		printf("\n\n\t\t\t查找账户成功！");
+		printf("\n\n\t\t\t请输入转账金额:");
+		scanf("%d", &qian);
+		if (t.money >= qian)//判断本账户和转出金额是否可以承担
+		{
+			t.money = t.money - qian;
+			temp.money = temp.money + qian;//现在只改变了内存，还未更改文件
+			fseek(fp, -sizeof(t), 1);
+			fwrite(&temp, sizeof(temp), 1, fp);
+			fseek(fp, n-sizeof(t), 0);//从文件开头移动，移动这么多的位置，然后就到，t的上一条的末尾了，现在开始写入的就是修改t文件的内容了，这就是n作为记录的作用
+			fwrite(&t, sizeof(t), 1, fp);//现在才是真正的写入了文件，真正的好使了
+			printf("\n\n\t\t\t转账成功！");
+		}
+		else
+		{
+			printf("\n\n\t\t\t本账户余额不足");
+		}
+	}
+	else
+	{
+		printf("\n\n\t\t\t未在客户端中找到此账号！");//判断客户端中是否有此账号
+	}
+}
+//修改密码函数
+void updatepassword()
+{
+	
+	system("cls");
+	int i;
+	char password1[20], password2[20], password3[20];//分别为旧密码，新密码，确认新密码的
+	printf("\n\n\t\t\t您正在执行的是修改密码功能");
+	for( i=0;i<3;i++)
+	{
+		printf("\n\n\t\t\t请输入旧密码来验证身份");
+		rewind(stdin);
+		input(password1);
+		if (strcmp(password1, t.password) == 0)
+		{
+			break;
+		}
+		else
+		{
+			printf("\n\n\t\t\t旧密码输入有误，请重新输入密码");
+		}
+	}
+	if (i < 3)
+	{
+		while (1)
+		{
+			printf("\n\n\n\t\t\t验证身份成功！请输入新密码：");
+			input(password2);
+			printf("\n\n\n\t\t\t请确认新密码：");
+			input(password3);
+			if (strcmp(password2, password3) == 0)
+			{
+				strcpy(t.password, password2);//库函数中将二赋予一中
+				fseek(fp, -sizeof(t), 1);
+				fwrite(&t, sizeof(t), 1, fp);
+				printf("\n\n\t\t\t修改密码成功！");
+					break;
+			}
+			else
+			{
+				printf("\n\n\t\t\t两次密码输入不一致，请重新输入");//因为他需要循环输入，所以利用while
+			}
+		}
+
+	}
+	else
+	{
+		printf("\n\n\t\t\t三次旧密码都输入错误，吞卡中······");
+	}
+}
+//注销函数
+void zhuxiao()
+{
+	system("cls");
+	char sf;
+	printf("\n\n\t\t\t您正在执行的是注销功能");
+	printf("\n\n\t\t\t您要注销的客户账号是：%d\n", t.account);
+	printf("\n\n\t\t\t您是否真的要注销此账户？注销【Y】,返回【N】:");
+	rewind(stdin);
+	scanf("%c", &sf);
+	if (sf == 'y'||sf=='Y')
+	{
+		printf("\n\n\t\t\t正在对账号%d进行注销······", t.account);
+		zx = 1;//应作为一个标志来进行使用
+
+	}
+	else
+	{
+		printf("\n\n\t\t\t不对%d账号注销，返回服务界面", t.account);
+	}
+	if (zx == 1)
+	{
+		return;//加不加都可以，结束了都会返回，这是第一次返回//可以有两种方法，另外一种一种可以不用全局变量
+	}
+}
+//服务界面函数
+void service()
+{
+	
+	while (1)
+	{
+		system("cls");
+		char xz;
+		printf("\n\n\t\t\t您正在使用服务功能界面");
+		printf("\n\n\t\t\tA >>> 查询余额");
+		printf("\n\n\t\t\tB >>> 存款");
+		printf("\n\n\t\t\tC >>> 取款");
+		printf("\n\n\t\t\tD >>> 转账");
+		printf("\n\n\t\t\tE >>> 修改密码");
+		printf("\n\n\t\t\tF >>> 注销");
+		printf("\n\n\t\t\tG >>> 退出系统");
+		printf("\n\n\t\t\t请选择您需要的服务种类：");
+		rewind(stdin);
+		scanf("%c", &xz);
+		switch (xz)
+		{
+		case 'a':
+		case 'A': selectmoney(); break; 
+		case 'b':
+		case 'B': savemoney(); break; 
+		case 'c':
+		case 'C': getmoney(); break; 
+		case 'd':
+		case 'D': zhuanzhang(); break; 
+		case 'e':
+		case 'E': updatepassword(); break; 
+		case 'f':
+		case 'F': zhuxiao(); if (zx == 1)return; break;//通过zx变量再一次判断，是否进行二次返回
+		case 'g':
+		case 'G': quit(); break; //最后一个break加不加都可以，遇见花括号都会结束
+		}
+		printf("\n\n\t\t\t按任意键继续······");
+		_getch();//留存应用、、很重要！！！！！不然直接结束了
+		
+
+	}
+}
+//注册函数
+void regist()
+{
+	//struct bank t;因为都要用，将其改为全局变量
+	char password1[7];//确认密码
+	fp = fopen("atm.txt","ab+");
+	if (fp == NULL)
+	{
+		printf("\n\n\t\t\t打开文件失败！");
+		return;
+	}
+	printf("\n\n\n\t\t\t请输入用户名:");
+	//scanf("%s", &name);//是无法输入空格的
+	//正常会清除缓存区，但可能因版本缘故出现可用性
+	rewind(stdin);//清除缓冲区的函数
+	gets_s(kehu.name);
+	printf("\n\n\t\t\t这个用户名是：%s", kehu.name);
+	while (1)
+	{
+		while (1)
+		{
+			printf("\n\n\t\t\t请输入六位用户密码：");
+			input(kehu.password);
+			int length = strlen(kehu.password);//需要引入头文件string.h
+			if (length == 6)
+			{
+				printf("\n\n\t\t\t输入密码成功！");
+				break;
+			}
+			else
+			{
+
+				printf("\n\n\t\t\t密码格式错误，请重新输入密码");
+			}
+		}
+		printf("\n\n\t\t\t请重新确认密码");
+		
+		while (1)
+		{
+			input(password1);
+			if (strcmp(kehu.password, password1) == 0)
+			{
+				printf("\n\n\t\t\t确认密码成功!");
+				break;
+			}
+			else
+			{
+				printf("\n\n\t\t\t两次密码不一致，请重新输入");
+			}
+		}
+		rewind(fp);//将文件指针定位到文件开头
+		if (fread(&t, sizeof(t), 1, fp)==1)//证明不是第一个数据，因为读出来了
+		{
+			fseek(fp, -sizeof(kehu), 2);//把开始位置放到倒数第二条的位置
+			fread(&t, sizeof(t), 1, fp);//读取的是最后一条记录//
+			kehu.account = t.account + 1;//这个客户已经是第二个了，t.account是他的上一个注册的，在帐号前+1，作为下一个人的账号
+		}
+		else//是第一个数据，没读出来
+		{
+			kehu.account = 20220001;//初始账号
+		}
+		//printf("\n\n\t\t\t请输入用户账号");//想让账号是自动生成，如何进行改造
+		//scanf("%d", &kehu[count].account);
+
+		kehu.money = 0;
+		fseek(fp, 0, 2);//将指针调到了文件末尾
+		fwrite(&kehu,sizeof(struct bank),1,fp);//struct bank是一种类型，也可以作为大小的判断量eg int 与int a后 的a类型相同
+		fclose(fp);//最后一定要关闭文件！！！！
+		printf("\n\n\t\t\t注册成功！\n");
+		printf("\n\n\t\t\t您的账号为：%d\n", kehu.account);
+		//count++
+		/*for (int t = 0; t < 6; t++)
+		{
+			scanf("%c", &name[t]);
+		}
+		for (int i = 0; i < 6; i++)
+		{
+			printf("%c", name[i]);
+		}*/
+		printf("\n\n\n\t\t\t您正在执行的是注册函数应用···");
+		break;
+		//return;//一般都可以省略
+	}
+}
+//登录函数
+void login()
+{
+	fp = fopen("atm.txt", "rb+");
+	if (fp == NULL)
+	{
+		printf("\n\n\t\t\t打开失败！\n");
+		return;
+	}
+	printf("\n\n\n\t\t\t您正在执行的是登录函数应用···");
+	int zhanghao;
+	char password1[10];
+	struct bank t;
+	int f = 0;
+	printf("\n\n\t\t\t请输入您的账号");
+	scanf("%d", &zhanghao);
+	/*for (int i = 0; i < count; i++)*///利用循环来查找已经存储的数据，count代表了我存储的数据，应为count-1个数据存储于其中
+	while(fread ( &t, sizeof(t), 1, fp)==1)//当能读取到文件时，这个很难理解//一直利用文件来查找，而不是利用循环for
+	{
+		if (zhanghao == t.account)//判断是否能从其中查找出来
+		{
+			f = 1;//作为一个判断值来进行判断
+			//find = i;//判断找到了
+			break;
+		}
+	}
+	int j;
+	if (f == 1)
+	{
+		for ( j=0;j<3;j++)
+		{
+			printf("\n\n\t\t\t请输入您的密码");
+			input(password1);
+			if (strcmp(password1, t.password) == 0)//现在t是我们的账号，用t里面的密码和输入的密码比较，看是否相同
+			{
+				printf("\n\n\t\t\t登陆成功！");
+				service();
+				break;
+			}
+		}
+		if (j == 3)
+		{
+			printf("\n\n\t\t\t三次验证密码都未成功,吞卡中······");
+		}
+
+	}
+	else
+	{
+		printf("\n\n\t\t\t没有此账号");
+	}
+	fclose(fp);//最后一次一定要关闭文件
+}
+//主函数
+int main()
+{
+	int t = 1;
+	char xz;
+	int i = 0;//声明变量类型
+	for(i=1;i<=100;i++)
+	{ 
+	printf("\n\n\n\t\t\t欢迎使用大连工业大学ATM系统\n");//输出一\t代表空格
+	printf("\t\t\t正在进入主页面，请稍等");//输出二\n代表换行
+	for (int j = 1; j <= t; j++)
+	{
+		printf(".");
+	}
+	t++;
+	if (t == 10)
+	{
+		t = 1;
+	}
+	printf("\n%d%%",i);//需要用两个%%来输出一个%，来表示进度百分比
+	for (int m = 0; m < 52100000; m++);//一个用来拖延时间的函数，只是循环没有内容，来拖延加载时间，因为没有循环体直接在后面加;
+	system("cls");//清屏函数
+	}
+	while (1)//死循环的形式
+	{
+		printf("\n\n\n\t\t\t大连工业大学ATM系统正在为您服务\n\n");
+		printf("\t\t\t服务【A】:用户注册\n\n");
+		printf("\t\t\t服务【B】:用户登录\n\n");
+		printf("\t\t\t服务【C】:用户系统\n\n");
+		printf("\t\t\t请选择服务:");
+		//fflush(stdin);
+		rewind(stdin);//这个是清除缓冲区函数
+		scanf("%c", &xz);
+		//getchar();//清除缓冲区的函数不太好用，用一个getchar来起到相同作用
+		//fflush(stdin);//清除键盘缓冲区的回车符，因为回车也算字符在缓冲区中
+		if (xz == 'a' || xz == 'A')//应分为多个函数，来更容易模块化管理
+		{
+			regist();//函数的调用,在哪里调用，就在哪里返回
+		}
+		else if (xz == 'b' || xz == 'B')
+		{
+
+			login();
+		}
+		else if (xz == 'c' || xz == 'C')
+		{
+
+			quit();
+		}
+		else
+		{
+
+			printf("\n\t\t\t输入选择有误，请重新输入\n");
+		}
+		printf("\n\t\t\t按任意键继续······");
+		_getch();//不经过键盘缓冲区的字符输入函数,因为不经过缓冲区一般在屏幕上看不到,引入需要头文件,VS2022需要将getch改为_getch
+		system("cls");
+	}
+	return 0;
+}
