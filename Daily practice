@@ -1,0 +1,68 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include<stdio.h>
+#include<stdlib.h>
+void print_table(int n)
+{
+	int j = 0, t = 0;
+	for (t = 1; t <= n; t++)
+	{
+		for (j = 1; j <= t; j++)
+		{
+			printf("%2d*%2d=%d", t, j, t * j);
+		}
+		printf("\n");
+	}
+}
+int main()//打印乘法口诀，可以进行主观的改变行数
+{
+	printf("please enter a number: ");
+	int n = 0;
+	scanf("%d", &n);
+	print_table(n);
+	return 0;
+}
+//编写一个倒序输出函数,不可以用库函数中内容
+int my_strlen(char* str)
+{
+	int count = 0;
+	while (*str != '\0')
+	{
+		count++;
+		str++;
+	}
+	return count;
+}
+void reverse_string(char* str)
+{
+	int left = 0;
+	int right = my_strlen(str) - 1;//最后有一个/0
+	while (left < right)
+	{
+		
+		int temp = str[left];//可以换成*(str+left)
+		str[left] = str[right];
+		str[right] = temp;
+		left++;
+		right--;
+	}
+}
+//可以用递归的方法来解决问题
+void reverse_string(char *str)
+{
+	char temp =  *str;
+	int len = my_strlen(str);
+	*str = *(str + len - 1);
+	*(str + len - 1) = '\0';
+	if (my_strlen(str + 1) >= 2)
+	{
+		reverse_string(str + 1);
+	}
+	*(str + len - 1) = temp;
+}
+int main()
+{
+	char arr[] = "abcdef";
+	reverse_string(arr);
+	printf("%s", arr);
+	return 0;
+}
